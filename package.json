@@ -1,0 +1,21 @@
+{
+  "name": "ai-ml-portfolio",
+  "version": "1.0.0",
+  "description": "Tech-forward portfolio for an AI/ML Engineer showcasing projects, certificates, leadership, and internships with interactive neural canvas and terminal console.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "portfolio",
+    "ai-ml-engineer",
+    "deep-learning",
+    "node",
+    "pytorch",
+    "llm",
+    "interactive-terminal"
+  ],
+  "author": "AI/ML Engineer",
+  "license": "MIT"
+}
