@@ -17,10 +17,21 @@ document.addEventListener('DOMContentLoaded', () => {
 function initExperienceAccordion() {
   const expItems = document.querySelectorAll('.exp-item');
   expItems.forEach(item => {
+    const header = item.querySelector('.exp-header-row');
     const box = item.querySelector('.exp-content-box');
-    if (box) {
-      box.addEventListener('click', () => {
-        // Toggle current item
+    
+    // Toggle on header click or prevent collapsing when interacting with details body
+    if (header) {
+      header.style.cursor = 'pointer';
+      header.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = item.classList.contains('open');
+        item.classList.toggle('open', !isOpen);
+      });
+    } else if (box) {
+      box.addEventListener('click', (e) => {
+        // Prevent accidental toggle when selecting/clicking text inside body
+        if (e.target.closest('.exp-details-body')) return;
         const isOpen = item.classList.contains('open');
         item.classList.toggle('open', !isOpen);
       });
@@ -49,6 +60,7 @@ function initPlayground() {
   const promptInput = document.getElementById('prompt-input');
   const confDisplay = document.getElementById('telemetry-conf');
   const resultsDisplay = document.getElementById('inference-results');
+  const latencyBadge = document.querySelector('.playground-status-badges .shell-badge:nth-child(3)');
 
   if (!runBtn || !promptInput) return;
 
@@ -66,48 +78,63 @@ function initPlayground() {
         const response = await fetch('/api/inference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: text, task: 'sentiment' })
+          body: JSON.stringify({ prompt: text, task: 'inference' })
         });
         if (response.ok) {
           data = await response.json();
         }
       } catch (e) {
-        // Client-side fallback
+        // Fallback to client simulation if server is offline
       }
 
-      await new Promise(r => setTimeout(r, 250));
+      await new Promise(r => setTimeout(r, 200));
 
-      const isEncrypted = text.toLowerCase().includes('paillier') || text.toLowerCase().includes('encrypted');
-      const isBenign = text.toLowerCase().includes('typical') || text.toLowerCase().includes('standard');
-
-      if (isEncrypted) {
-        confDisplay.textContent = '100.0% (Zero-Knowledge Verified)';
-        resultsDisplay.innerHTML = `
-          <strong>[Federated Aggregation Validated]</strong><br>
-          Homomorphic Batch: 2,048-bit Paillier Cryptosystem<br>
-          Weight Verification: OK &bull; Zero Gradient Leakage<br>
-          Convergence Round: Synchronized across distributed nodes.
-        `;
-      } else if (isBenign) {
-        confDisplay.textContent = '96.8% (Neurotypical Baseline)';
-        resultsDisplay.innerHTML = `
-          <strong>[Ensemble Prediction: Low Risk]</strong><br>
-          CNN Spatial Feature Extractor: Concordance 0.94<br>
-          LSTM Recurrent Sequential Score: Baseline Normal<br>
-          Classification: No atypical variance detected.
-        `;
+      if (data && data.execution_html && data.confidence_str) {
+        // Use live backend inference API telemetry
+        if (confDisplay) confDisplay.textContent = data.confidence_str;
+        if (resultsDisplay) resultsDisplay.innerHTML = data.execution_html;
+        if (latencyBadge && data.latency_ms) {
+          latencyBadge.textContent = `Latency: ${data.latency_ms}ms`;
+        }
       } else {
-        confDisplay.textContent = '98.4% (ASD Positive Indicator)';
-        resultsDisplay.innerHTML = `
-          <strong>[Inference Execution Completed]</strong><br>
-          Ensemble Latent Weights: [0.941, 0.887, 0.992]<br>
-          ROC-AUC Diagnostic Precision: 0.984 &bull; Loss: 0.041 &darr;<br>
-          Spatial-Temporal Fusion: Attenuated gesture & eye-gaze indicators identified.
-        `;
-      }
+        // Robust client-side fallback
+        const isEncrypted = text.toLowerCase().includes('paillier') || text.toLowerCase().includes('encrypted');
+        const isBenign = text.toLowerCase().includes('typical') || text.toLowerCase().includes('standard');
 
+        if (isEncrypted) {
+          if (confDisplay) confDisplay.textContent = '100.0% (Zero-Knowledge Verified)';
+          if (resultsDisplay) {
+            resultsDisplay.innerHTML = `
+              <strong>[Federated Aggregation Validated]</strong><br>
+              Homomorphic Batch: 2,048-bit Paillier Cryptosystem<br>
+              Weight Verification: OK &bull; Zero Gradient Leakage<br>
+              Convergence Round: Synchronized across distributed nodes.
+            `;
+          }
+        } else if (isBenign) {
+          if (confDisplay) confDisplay.textContent = '96.8% (Neurotypical Baseline)';
+          if (resultsDisplay) {
+            resultsDisplay.innerHTML = `
+              <strong>[Ensemble Prediction: Low Risk]</strong><br>
+              CNN Spatial Feature Extractor: Concordance 0.94<br>
+              LSTM Recurrent Sequential Score: Baseline Normal<br>
+              Classification: No atypical variance detected.
+            `;
+          }
+        } else {
+          if (confDisplay) confDisplay.textContent = '98.4% (ASD Positive Indicator)';
+          if (resultsDisplay) {
+            resultsDisplay.innerHTML = `
+              <strong>[Inference Execution Completed]</strong><br>
+              Ensemble Latent Weights: [0.941, 0.887, 0.992]<br>
+              ROC-AUC Diagnostic Precision: 0.984 &bull; Loss: 0.041 &darr;<br>
+              Spatial-Temporal Fusion: Attenuated gesture & eye-gaze indicators identified.
+            `;
+          }
+        }
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Inference error:', err);
     } finally {
       runBtn.disabled = false;
       runBtn.textContent = 'Run Neural Inference →';
@@ -124,21 +151,15 @@ function initMobileMenu() {
   if (!toggleBtn || !navMenu) return;
 
   toggleBtn.addEventListener('click', () => {
-    const isVisible = window.getComputedStyle(navMenu).display !== 'none';
-    if (isVisible) {
-      navMenu.style.display = 'none';
-    } else {
-      navMenu.style.display = 'flex';
-      navMenu.style.flexDirection = 'column';
-      navMenu.style.position = 'absolute';
-      navMenu.style.top = '76px';
-      navMenu.style.left = '0';
-      navMenu.style.right = '0';
-      navMenu.style.background = '#faf8f5';
-      navMenu.style.padding = '24px';
-      navMenu.style.borderBottom = '1px solid #eae7de';
-      navMenu.style.gap = '18px';
-    }
+    navMenu.classList.toggle('nav-open');
+  });
+
+  // Automatically close mobile menu when a nav link is clicked
+  const navLinks = navMenu.querySelectorAll('a');
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      navMenu.classList.remove('nav-open');
+    });
   });
 }
 
@@ -197,34 +218,42 @@ function initContactForm() {
   const form = document.getElementById('contact-form');
   const statusDiv = document.getElementById('transmission-status');
   const submitBtn = document.getElementById('send-msg-btn');
-  if (!form || !statusDiv) return;
+  if (!form || !statusDiv || !submitBtn) return;
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     submitBtn.disabled = true;
     submitBtn.textContent = 'Transmitting...';
+    statusDiv.style.display = 'none';
 
-    const name = document.getElementById('sender-name').value;
-    const email = document.getElementById('sender-email').value;
-    const message = document.getElementById('sender-msg').value;
+    const name = document.getElementById('sender-name').value.trim();
+    const email = document.getElementById('sender-email').value.trim();
+    const message = document.getElementById('sender-msg').value.trim();
 
     try {
-      await fetch('/api/contact', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, message })
       });
-    } catch (err) {
-      // Offline fallback
-    }
 
-    setTimeout(() => {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Server rejected transmission');
+      }
+
       statusDiv.style.display = 'block';
       statusDiv.style.color = 'var(--accent-green)';
       statusDiv.textContent = '✓ Transmission confirmed. Emmanuel will respond within 24 hours.';
       form.reset();
+    } catch (err) {
+      statusDiv.style.display = 'block';
+      statusDiv.style.color = '#ef4444';
+      statusDiv.textContent = '⚠ Transmission failed. Please contact stillmanuel223@gmail.com directly.';
+      console.error('Contact transmission failed:', err);
+    } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Send Message →';
-    }, 400);
+    }
   });
 }
